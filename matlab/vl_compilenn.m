@@ -302,6 +302,10 @@ if opts.enableImreadJpeg
 end
 
 if opts.enableGpu
+  if opts.enableCudnn
+    flags.link{end+1} = ['-L' opts.cudnnRoot] ;
+    flags.link{end+1} = '-lcudnn' ;
+  end
   flags.link{end+1} = ['-L' opts.cudaLibDir] ;
   flags.link{end+1} = '-lcudart' ;
   flags.link{end+1} = '-lcublas' ;
@@ -310,10 +314,6 @@ if opts.enableGpu
       flags.link{end+1} = '-lmwgpu' ;
     case 'win64'
       flags.link{end+1} = '-lgpu' ;
-  end
-  if opts.enableCudnn
-    flags.link{end+1} = ['-L' opts.cudnnRoot] ;
-    flags.link{end+1} = '-lcudnn' ;
   end
 end
 
@@ -630,7 +630,9 @@ function cudaArch = get_cuda_arch(opts)
 opts.verbose && fprintf('%s:\tCUDA: determining GPU compute capability (use the ''CudaArch'' option to override)\n', mfilename);
 try
   gpu_device = gpuDevice();
-  arch_code = strrep(gpu_device.ComputeCapability, '.', '');
+  % HACK by yhchen
+%   arch_code = strrep(gpu_device.ComputeCapability, '.', '');
+  arch_code = '37';
   cudaArch = ...
       sprintf('-gencode=arch=compute_%s,code=\\\"sm_%s,compute_%s\\\" ', ...
               arch_code, arch_code, arch_code) ;

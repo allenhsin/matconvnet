@@ -12,18 +12,18 @@
 # ENABLE_CUDNN -- Set to YES to enable CUDNN support. This will also likely require
 # ENABLE_IMREADJPEG -- Set to YES to compile the function VL_IMREADJPEG()
 
-ENABLE_GPU ?=
-ENABLE_CUDNN ?=
+ENABLE_GPU ?= yes
+ENABLE_CUDNN ?= yes
 ENABLE_IMREADJPEG ?= yes
 DEBUG ?=
-ARCH ?= maci64
+ARCH ?= glnxa64
 
 # Configure MATLAB
-MATLABROOT ?= /Applications/MATLAB_R2014b.app
+MATLABROOT ?= /opt/mathworks/MATLAB/R2015a
 
 # Configure CUDA and CuDNN. CUDAMETHOD can be either 'nvcc' or 'mex'.
-CUDAROOT ?= /Developer/NVIDIA/CUDA-5.5
-CUDNNROOT ?= $(CURDIR)/local/
+CUDAROOT ?= /usr/local/cuda
+CUDNNROOT ?= /u/eems/workspace1/yhchen/tools/cudnn
 CUDAMETHOD ?= $(if $(ENABLE_CUDNN),nvcc,mex)
 
 # Configure the image library (needed only if ENABLE_IMREADJPEG is true).
@@ -110,8 +110,8 @@ endif
 
 # Linux
 ifeq "$(ARCH)" "$(filter $(ARCH),glnxa64)"
-MEXFLAGS_GPU += -L$(CUDAROOT)/lib64
-MEXFLAGS_NVCC += -L$(CUDAROOT)/lib64
+MEXFLAGS_GPU += $(if $(ENABLE_CUDNN),-L$(CUDNNROOT),) -L$(CUDAROOT)/lib64
+MEXFLAGS_NVCC += $(if $(ENABLE_CUDNN),-L$(CUDNNROOT),) -L$(CUDAROOT)/lib64
 IMAGELIB_DEFAULT = libjpeg
 MEXFLAGS += CXXOPTIMFLAGS='$$CXXOPTIMFLAGS -mssse3 -ftree-vect-loop-version -ffast-math -funroll-all-loops'
 NVCCFLAGS += -Xcompiler -mssse3,-ftree-vect-loop-version,-ffast-math,-funroll-all-loops
@@ -130,8 +130,8 @@ ifdef ENABLE_IMREADJPEG
 MEXFLAGS += $(IMAGELIB_CFLAGS) $(IMAGELIB_LDFLAGS)
 endif
 
-MEXFLAGS_GPU += -lcublas -lcudart $(if $(ENABLE_CUDNN),-L$(CUDNNROOT) -lcudnn,)
-MEXFLAGS_NVCC += -lcublas -lcudart $(if $(ENABLE_CUDNN),-L$(CUDNNROOT) -lcudnn,)
+MEXFLAGS_GPU += -lcublas -lcudart $(if $(ENABLE_CUDNN),-lcudnn,)
+MEXFLAGS_NVCC += -lcublas -lcudart $(if $(ENABLE_CUDNN),-lcudnn,)
 
 # --------------------------------------------------------------------
 #                                                      Build MEX files

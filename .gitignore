@@ -25,3 +25,10 @@ doc/figures/*.idraw
 *.sdf
 *.opensdf
 doc/figures/svg/*.idraw
+
+# vim
+*.swp
+
+# downloaded models
+models/*
+
