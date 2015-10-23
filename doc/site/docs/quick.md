@@ -11,8 +11,8 @@ speed, downloading the CNN model may require some time.
 
 ```matlab
 % install and compile MatConvNet (needed once)
-untar('http://www.vlfeat.org/matconvnet/download/matconvnet-1.0-beta15.tar.gz') ;
-cd matconvnet-1.0-beta15
+untar('http://www.vlfeat.org/matconvnet/download/matconvnet-1.0-beta16.tar.gz') ;
+cd matconvnet-1.0-beta16
 run matlab/vl_compilenn
 
 % download a pre-trained CNN from the web (needed once)
@@ -73,7 +73,7 @@ im_ = im_ - net.meta.normalization.averageImage ;
 net.eval({'data', im_}) ;
 
 % obtain the CNN otuput
-scores = net.vars(net.getVarIndex('prediction')).value ;
+scores = net.vars(net.getVarIndex('prob')).value ;
 scores = squeeze(gather(scores)) ;
 
 % show the classification results

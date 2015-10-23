@@ -1,7 +1,10 @@
 # Pretrained models
 
 This section describes how pre-trained models can be downloaded and
-used in MatConvNet.
+used in MatConvNet. Using the pre-trained model is easy; just start
+from the example code included in the [quickstart guide](quick.md).
+
+[TOC]
 
 > **Remark:** The following CNN models may have been *imported from
 > other reference implementations* and are equivalent to the originals
@@ -22,16 +25,37 @@ used in MatConvNet.
 > 3.  These models are provided here for convenience, but please
 >     credit the original authors.
 
-## Using the pretrained models
+## Face recognition
 
-In order to run, say, `imagenet-vgg-s` on a test image, start from the
-example code included in the [quickstart guide](quick.md).
+These models are trained for face classification and verification.
 
-## Downloading the pre-trained models
+-   **VGG-Face**. The face classification and verification network from
+    the
+    [VGG project](http://www.robots.ox.ac.uk/~vgg/software/vgg_face/).
 
-### Miscellaneous models
+    > Deep face recognition, O. M. Parkhi and A. Vedaldi and
+    > A. Zisserman, Proceedings of the British Machine Vision
+    > Conference (BMVC), 2015
+    > ([paper](http://www.robots.ox.ac.uk/~vgg/publications/2015/Parkhi15/parkhi15.pdf)).
 
--   **Fully-Convolutional Networks** (FCN) imported from the
+    - [vgg-face](models/vgg-face.mat)
+
+    See the script `examples/cnn_vgg_face.m` for an example of using
+    VGG-Face in 'classifcation' mode. To use this for face
+    verification, extract the 4K dimensional features by removing the
+    last classification layer and normalize the resulting vector in L2
+    norm.
+
+## Semantic segmentation
+
+These models are trained for semantic image segmentation using the
+PASCAL VOC category definitions.
+
+-   **Fully-Convolutional Networks** (FCN) training and evaluation
+    code is available
+    [here](https://github.com/vlfeat/matconvnet-fcn).
+
+-   **BVLC FCN** (the original implementation) imported from the
     [Caffe version](https://github.com/BVLC/caffe/wiki/Model-Zoo)
     [*DagNN format*].
 
@@ -42,6 +66,10 @@ example code included in the [quickstart guide](quick.md).
     - [pascal-fcn32s-dag](models/pascal-fcn32s-dag.mat)
     - [pascal-fcn16s-dag](models/pascal-fcn16s-dag.mat)
     - [pascal-fcn8s-dag](models/pascal-fcn8s-dag.mat)
+
+    These networks are trained on the PASCAL VOC 2011 training and (in
+    part) validation data, using Berekely's extended annotations
+    ([SBD](http://www.cs.berkeley.edu/~bharath2/codes/SBD/download.html)).
 
     The performance measured on the PASCAL VOC 2011 validation data
     subset used in the revised version of the paper above (dubbed
@@ -54,7 +82,7 @@ example code included in the [quickstart guide](quick.md).
     | FNC-8s  | RV-VOC11  | 62.69   | 90.33              | 75.86          |
 
 -   **Torr Vision Group FCN-8s**. This is the FCN-8s subcomponent of the
-    CRF-RNN network from the paper (see Table 1, row 2, column 2):
+    CRF-RNN network from the paper:
 
     > 'Conditional Random Fields as Recurrent Neural Networks' *Shuai
     > Zheng, Sadeep Jayasumana, Bernardino Romera-Paredes, Vibhav
@@ -64,17 +92,22 @@ example code included in the [quickstart guide](quick.md).
 
     - [pascal-fcn8s-tvg-dag](models/pascal-fcn8s-tvg-dag.mat)
 
+    These networks are trained on the PASCAL VOC 2011 training and (in
+    part) validation data, using Berekely's extended annotations, as
+    well as Microsoft COCO.
+
     While the CRF component is missing (it may come later to
     MatConvNet), this model still outperforms the FCN-8s network
-    above, partially because it is trained with additonal data from
-    COCO. In the table below, RV-VOC12 is as described in the
-    'Conditional Random Fields' paper:
+    above, partially because it is trained with additional data from
+    COCO. In the table below, the RV-VOC12 data is the subset of the
+    PASCAL VOC 12 data as described in the 'Conditional Random Fields'
+    paper:
 
     | Model      | Tes data  | mean IOU | mean pix. accuracy | pixel accuracy |
     |------------|-----------|----------|--------------------|----------------|
     | FNC-8s-TVG | RV-VOC12  | 69.85    | 92.94              | 78.80          |
 
-    *TVG impementation note*: The model was obtained by first
+    *TVG implementation note*: The model was obtained by first
     fine-tuning the plain FCN-32s network (without the CRF-RNN part)
     on COCO data, then building built an FCN-8s network with the
     learnt weights, and finally training the CRF-RNN network
@@ -82,10 +115,10 @@ example code included in the [quickstart guide](quick.md).
     here is the FCN-8s part of this network (without CRF-RNN, while
     trained with 10 iterations CRF-RNN).
 
-### ImageNet ILSVRC models
+## ImageNet ILSVRC classification
 
-These modesl arte trained to perform classification in the ImageNet
-ILSVRC challenge data:
+These modesl are trained to perform classification in the ImageNet
+ILSVRC challenge data.
 
 -   **GoogLeNet** model imported from the
     [Princeton version](http://vision.princeton.edu/pvt/GoogLeNet/)
