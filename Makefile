@@ -22,8 +22,8 @@ ARCH ?= glnxa64
 MATLABROOT ?= /opt/mathworks/MATLAB/R2015a
 
 # Configure CUDA and CuDNN. CUDAMETHOD can be either 'nvcc' or 'mex'.
-CUDAROOT ?= /usr/local/cuda
-CUDNNROOT ?= /u/eems/workspace1/yhchen/tools/cudnn
+CUDAROOT ?= /usr/local/cuda-6.5
+CUDNNROOT ?= /u/eems/workspace1/yhchen/tools/cudnn-v2
 CUDAMETHOD ?= $(if $(ENABLE_CUDNN),nvcc,mex)
 
 # Configure the image library (needed only if ENABLE_IMREADJPEG is true).
