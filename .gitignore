@@ -3,6 +3,7 @@
 *.xcodeproj/project.xcworkspace/xcshareddata/
 mex/*
 mex
+*.mexa64
 data
 *.o
 *.pyc
