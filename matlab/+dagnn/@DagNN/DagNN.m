@@ -93,6 +93,7 @@ classdef DagNN < handle
         'value', {}, ...
         'der', {}, ...
         'fanout', {}, ...
+        'trainMethod', {}, ...
         'learningRate', {}, ...
         'weightDecay', {}) ;
       obj.layers = struct(...
@@ -128,7 +129,7 @@ classdef DagNN < handle
     setLayerInputs(obj, leyer, inputs)
     setLayerOutput(obj, layer, outputs)
     setLayerParams(obj, layer, params)
-    renameVar(obj, oldName, newName)
+    renameVar(obj, oldName, newName, varargin)
     rebuild(obj)
 
     % Process data with the DagNN
@@ -168,7 +169,7 @@ classdef DagNN < handle
     %   with such a name is found, the value NaN is returned for the
     %   index.
     %
-    %   Variables can then be accessed as the `obj.layers(INDEX)`
+    %   Layers can then be accessed as the `obj.layers(INDEX)`
     %   property of the DaG.
     %
     %   Indexes are stable unless the DaG is modified (e.g. by adding
@@ -247,6 +248,87 @@ classdef DagNN < handle
         end
       end
     end
+
+    function layer = getLayer(obj, layerName)
+    %GETLAYER Get a copy of a layer definition
+    %   LAYER = GETLAYER(obj, NAME) returns a copy of the layer definition
+    %   structure with the specified NAME. NAME can also be a cell array
+    %   of strings or an array of indexes. If no parameter with a
+    %   specified name or index exists, an error is thrown.
+    %
+    %   See Also getLayerIndex().
+      if isnumeric(layerName)
+        idxs = layerName;
+        if any(idxs > numel(obj.layers) || idxs < 0)
+          error('Invalid layer indexes.');
+        end
+      else
+        assert(ischar(layerName), 'Layer name must be string or number.');
+        idxs = obj.getLayerIndex(layerName);
+        if any(isnan(idxs))
+          error('Invalid layer name `[%s]`', ...
+            strjoin(layerName(isnan(idxs)), ', '));
+        end
+      end
+      layer = obj.layers(idxs);
+    end
+
+    function var = getVar(obj, varName)
+    %GETVAR Get a copy of a layer definition
+    %   VAR = GETVAR(obj, NAME) returns a copy of the network variable
+    %   with the specified NAME. NAME can also be a cell array
+    %   of strings or an array of indexes. If no variable with a
+    %   specified name or index exists, an error is thrown.
+    %
+    %   See Also getVarIndex().
+      if isnumeric(varName)
+        idxs = varName;
+        if any(idxs > numel(obj.vars) || idxs < 0)
+          error('Invalid var indexes.');
+        end
+      else
+        assert(ischar(varName), 'Variable name must be string or number.');
+        idxs = obj.getVarIndex(varName);
+        if any(isnan(idxs))
+          error('Invalid variable name `[%s]`', ...
+            strjoin(varName(isnan(idxs)), ', '));
+        end
+      end
+      var = obj.vars(idxs);
+    end
+
+    function param = getParam(obj, paramName)
+    %GETPARAM Get a copy of a layer parameter
+    %   PARAM = GETPARAM(obj, NAME) returns a copy of the network parameter
+    %   with the specified NAME. NAME can also be a cell array
+    %   of strings or an array of indexes. If no parameter with a
+    %   specified name or index exists, an error is thrown.
+    %
+    %   See Also getParamIndex().
+      if isnumeric(paramName)
+        idxs = paramName;
+        if any(idxs > numel(obj.params) || idxs < 0)
+          error('Invalid param indexes.');
+        end
+      else
+        assert(ischar(paramName), 'Param name must be string or number.');
+        idxs = obj.getParamIndex(paramName);
+        if any(isnan(idxs))
+          error('Invalid param name `[%s]`', ...
+            strjoin(paramName(isnan(idxs)), ', '));
+        end
+      end
+      param = obj.params(idxs);
+    end
+
+    function order = getLayerExecutionOrder(obj)
+    %GETLAYEREXECUTIONORDER Get the order in which layers are evaluated
+    %   ORDER = GETLAYEREXECUTIONORDER(obj) returns a vector with
+    %   the indexes of the layers in the order in which they are
+    %   executed. This needs not to be the trivial order 1,2,...,L
+    %   as it depends on the graph topology.
+      order = obj.executionOrder ;
+    end
   end
 
   methods (Static)
@@ -254,7 +336,7 @@ classdef DagNN < handle
     obj = loadobj(s)
   end
 
-  methods (Access = private)
+  methods (Access = {?dagnn.DagNN, ?dagnn.Layer})
     function v = addVar(obj, name)
     %ADDVAR  Add a variable to the DaG
     %   V = ADDVAR(obj, NAME) adds a varialbe with the specified
@@ -286,6 +368,7 @@ classdef DagNN < handle
         'value', {[]}, ...
         'der', {[]}, ...
         'fanout', {0}, ...
+        'trainMethod', {'gradient'}, ...
         'learningRate', {1}, ...
         'weightDecay', {1}) ;
       obj.paramNames.(name) = p ;

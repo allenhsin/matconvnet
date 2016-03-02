@@ -1,5 +1,5 @@
 function vl_simplenn_diagnose(net, res)
-% VL_SIMPLENN_DIAGNOSE  Plot diagnostic information
+%VL_SIMPLENN_DIAGNOSE  Plot diagnostic information on a SimpleNN network.
 %   VL_SIMPLENN_DIAGNOSE(NET, RES) plots in the current window
 %   the average, maximum, and miminum element for all the filters
 %   and biases in the network NET. If RES is also provided, it will
@@ -8,6 +8,12 @@ function vl_simplenn_diagnose(net, res)
 %
 %   This function can be used to rapidly glance at the evolution
 %   of the paramters during training.
+
+% Copyright (C) 2014-15 Andrea Vedaldi.
+% All rights reserved.
+%
+% This file is part of the VLFeat library and is made available under
+% the terms of the BSD license (see the COPYING file).
 
 n = numel(net.layers) ;
 fmu = NaN + zeros(1, n) ;
@@ -31,14 +37,14 @@ dbmx = fmu ;
 
 for i=1:numel(net.layers)
   ly = net.layers{i} ;
-  if ismember(ly.type, {'conv', 'bnorm'}) && numel(ly.filters) > 0
-    x = gather(ly.filters) ;
+  if ismember(ly.type, {'conv', 'bnorm'}) && numel(ly.weights{1}) > 0
+    x = gather(ly.weights{1}) ;
     fmu(i) = mean(x(:)) ;
     fmi(i) = min(x(:)) ;
     fmx(i) = max(x(:)) ;
   end
-  if ismember(ly.type, {'conv', 'bnorm'}) && numel(ly.biases) > 0
-    x = gather(ly.biases) ;
+  if ismember(ly.type, {'conv', 'bnorm'}) && numel(ly.weights{2}) > 0
+    x = gather(ly.weights{2}) ;
     bmu(i) = mean(x(:)) ;
     bmi(i) = min(x(:)) ;
     bmx(i) = max(x(:)) ;
