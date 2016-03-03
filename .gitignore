@@ -47,5 +47,5 @@ doc/figures/svg/*.idraw
 *.swp
 
 # downloaded models
-models/*
+models/*.mat
 
