@@ -1,16 +1,17 @@
 function [net, info] = cnn_mnist(varargin)
-% CNN_MNIST  Demonstrated MatConNet on MNIST
+%CNN_MNIST  Demonstrates MatConvNet on MNIST
 
 run(fullfile(fileparts(mfilename('fullpath')),...
   '..', '..', 'matlab', 'vl_setupnn.m')) ;
 
 opts.batchNormalization = false ;
+opts.network = [] ;
 opts.networkType = 'simplenn' ;
 [opts, varargin] = vl_argparse(opts, varargin) ;
 
 sfx = opts.networkType ;
 if opts.batchNormalization, sfx = [sfx '-bnorm'] ; end
-opts.expDir = fullfile(vl_rootnn, 'data', ['mnist-baseline' sfx]) ;
+opts.expDir = fullfile(vl_rootnn, 'data', ['mnist-baseline-' sfx]) ;
 [opts, varargin] = vl_argparse(opts, varargin) ;
 
 opts.dataDir = fullfile(vl_rootnn, 'data', 'mnist') ;
@@ -23,8 +24,13 @@ if ~isfield(opts.train, 'gpus'), opts.train.gpus = []; end;
 %                                                         Prepare data
 % --------------------------------------------------------------------
 
-net = cnn_mnist_init('batchNormalization', opts.batchNormalization, ...
-                     'networkType', opts.networkType) ;
+if isempty(opts.network)
+  net = cnn_mnist_init('batchNormalization', opts.batchNormalization, ...
+    'networkType', opts.networkType) ;
+else
+  net = opts.network ;
+  opts.network = [] ;
+end
 
 if exist(opts.imdbPath, 'file')
   imdb = load(opts.imdbPath) ;

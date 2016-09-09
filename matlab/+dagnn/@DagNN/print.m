@@ -28,10 +28,19 @@ function str = print(obj, inputSizes, varargin)
 %      of each variables from each input.
 %
 %   `Format`:: 'ascii'
-%      Choose between `ascii`, `latex`, `csv`, and `dot`. The first three
-%      format print tables; the last one prints a graph in `dot` format.
+%      Choose between `ascii`, `latex`, `csv`, 'digraph', and `dot`.
+%      The first three format print tables; `digraph` uses the plot function
+%      for a `digraph` (supported in MATLAB>=R2015b) and the last one
+%      prints a graph  in `dot` format. In case of zero outputs, it
+%      attmepts to compile and visualise the dot graph using `dot` command
+%      and `display` (Linux) or `open` (Mac OSX) on your system.
 %      In the latter case, all variables and layers are included in the
 %      graph, regardless of the other parameters.
+%
+%   `PdfPath`:: temporary file
+%      Sets the path where any generated PDF will be saved. Currently, 
+%      this is useful only in combination with the format `dot`. 
+%      By default, a unique temporary filename is used.
 %
 %   `MaxNumColumns`:: 18
 %      Maximum number of columns in each table.
@@ -46,6 +55,7 @@ end
 
 opts.all = false ;
 opts.format = 'ascii' ;
+opts.pdfPath = 'tempname' ;
 [opts, varargin] = vl_argparse(opts, varargin) ;
 
 opts.layers = '*' ;
@@ -67,11 +77,16 @@ varSizes = obj.getVarSizes(inputSizes) ;
 paramSizes = cellfun(@size, {obj.params.value}, 'UniformOutput', false) ;
 str = {''} ;
 
-if strcmp(lower(opts.format),'dot')
+if strcmpi(opts.format, 'dot')
   str = printDot(obj, varSizes, paramSizes, opts) ;
   if nargout == 0
-    displayDot(str) ;
+    displayDot(str, opts.pdfPath) ;
   end
+  return ;
+end
+
+if strcmpi(opts.format,'digraph')
+  str = printdigraph(obj, varSizes) ;
   return ;
 end
 
@@ -293,6 +308,45 @@ end
 end
 
 % -------------------------------------------------------------------------
+function h = printdigraph(net, varSizes)
+% -------------------------------------------------------------------------
+if exist('digraph') ~= 2
+  error('MATLAB graph support not present.');
+end
+s = []; t = []; w = [];
+varsNames = {net.vars.name};
+layerNames = {net.layers.name};
+numVars = numel(varsNames);
+spatSize = cellfun(@(vs) vs(1), varSizes);
+spatSize(isnan(spatSize)) = 1;
+varChannels = cellfun(@(vs) vs(3), varSizes);
+varChannels(isnan(varChannels)) = 0;
+
+for li = 1:numel(layerNames)
+  l = net.layers(li); lidx = numVars + li;
+  s = [s l.inputIndexes];
+  t = [t lidx*ones(1, numel(l.inputIndexes))];
+  w = [w spatSize(l.inputIndexes)];
+  s = [s lidx*ones(1, numel(l.outputIndexes))];
+  t = [t l.outputIndexes];
+  w = [w spatSize(l.outputIndexes)];
+end
+nodeNames = [varsNames, layerNames];
+g = digraph(s, t, w);
+lw = 5*g.Edges.Weight/max([g.Edges.Weight; 5]);
+h = plot(g, 'NodeLabel', nodeNames, 'LineWidth', lw);
+highlight(h, numVars+1:numVars+numel(layerNames), 'MarkerSize', 8, 'Marker', 's');
+highlight(h, 1:numVars, 'MarkerSize', 5, 'Marker', 's');
+cmap = copper;
+varNvalRel = varChannels./max(varChannels);
+for vi = 1:numel(varChannels)
+  highlight(h, vi, 'NodeColor', cmap(max(round(varNvalRel(vi)*64), 1),:));
+end
+axis off;
+layout(h, 'force');
+end
+
+% -------------------------------------------------------------------------
 function str = printDot(net, varSizes, paramSizes, otps)
 % -------------------------------------------------------------------------
 str = {} ;
@@ -316,17 +370,17 @@ for l = 1:numel(net.layers)
   str{end+1} = sprintf('\t%s [label="%s" shape=record style="bold,filled" color="tomato4" fillcolor="tomato" %s ]\n', ...
     net.layers(l).name, label, font_style) ;
   for i = 1:numel(net.layers(l).inputs)
-    str{end+1} = sprintf('\tvar_%s->%s []\n', ...
+    str{end+1} = sprintf('\tvar_%s->%s [weight=10]\n', ...
       net.layers(l).inputs{i}, ...
       net.layers(l).name) ;
   end
   for o = 1:numel(net.layers(l).outputs)
-    str{end+1} = sprintf('\t%s->var_%s []\n', ...
+    str{end+1} = sprintf('\t%s->var_%s [weight=10]\n', ...
       net.layers(l).name, ...
       net.layers(l).outputs{o}) ;
   end
   for p = 1:numel(net.layers(l).params)
-    str{end+1} = sprintf('\tpar_%s->%s []\n', ...
+    str{end+1} = sprintf('\tpar_%s->%s [weight=1]\n', ...
       net.layers(l).params{p}, ...
       net.layers(l).name) ;
   end
@@ -337,22 +391,39 @@ str = cat(2,str{:}) ;
 end
 
 % -------------------------------------------------------------------------
-function displayDot(str)
+function displayDot(str, pdfPath)
 % -------------------------------------------------------------------------
 %mwdot = fullfile(matlabroot, 'bin', computer('arch'), 'mwdot') ;
-dotexe = 'dot' ;
+dotPaths = {'dot', '/opt/local/bin/dot'} ;
+dotExe = '' ;
+for i = 1:numel(dotPaths)
+  if exist(dotPaths{i},'file')
+    dotExe = dotPaths{i} ;
+  end
+end
+if isempty(dotExe)
+  warning('Could not genereate a PDF figure because the `dot` utility could not be found.') ;
+  return ;
+end
 
-in=[tempname '.dot'];
-out=[tempname '.pdf'];
+in = [tempname '.dot'] ;
+
+if strcmp(pdfPath, 'tempname')
+    out = [tempname '.pdf'] ;
+else
+    % ensure .pdf suffix for output
+    [path, name, ext] = fileparts(pdfPath) ;
+    out = fullfile(path, [ name '.pdf' ]) ;
+end
 
 f = fopen(in,'w') ; fwrite(f, str) ; fclose(f) ;
 
-cmd = sprintf('"%s" -Tpdf -o "%s" "%s"', dotexe, out, in) ;
+cmd = sprintf('"%s" -Tpdf -o "%s" "%s"', dotExe, out, in) ;
 [status, result] = system(cmd) ;
 if status ~= 0
-  error('Unable to run %s\n%s', cmd, result);
+  error('Unable to run %s\n%s', cmd, result) ;
 end
-fprintf('Dot output:\n%s\n', result);
+fprintf('Dot output:\n%s\n', result) ;
 
 %f = fopen(out,'r') ; file=fread(f, 'char=>char')' ; fclose(f) ;
 switch computer

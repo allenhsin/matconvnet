@@ -37,18 +37,22 @@ function res = vl_simplenn(net, x, dzdy, res, varargin)
 %   VL_SIMPLENN(NET, X, DZDY, RES, 'OPT', VAL, ...) takes the following
 %   options:
 %
-%   `Mode`:: `normal`
+%   `Mode`:: `'normal'`
 %      Specifies the mode of operation. It can be either `'normal'` or
 %      `'test'`. In test mode, dropout and batch-normalization are
 %      bypassed. Note that, when a network is deployed, it may be
 %      preferable to *remove* such blocks altogether.
 %
-%   `ConserveMemory`:: `true`
+%   `ConserveMemory`:: `false`
 %      Aggressively delete intermediate results. This in practice has
 %      a very small performance hit and allows training much larger
 %      models. However, it can be useful to disable it for
-%      debugging. It is also possible to preserve individual layer outputs
+%      debugging. Keeps the values in `res(1)` (input) and `res(end)`
+%      (output) with the outputs of `loss` and `softmaxloss` layers.
+%      It is also possible to preserve individual layer outputs
 %      by setting `net.layers{...}.precious` to `true`.
+%      For back-propagation, keeps only the derivatives with respect to
+%      weights.
 %
 %   `CuDNN`:: `true`
 %      Use CuDNN when available.
@@ -59,9 +63,12 @@ function res = vl_simplenn(net, x, dzdy, res, varargin)
 %      The gradients are accumulated to the provided RES structure
 %      (i.e. to call VL_SIMPLENN(NET, X, DZDY, RES, ...).
 %
+%   `BackPropDepth`:: `inf`
+%      Limit the back-propagation to top-N layers.
+%
 %   `SkipForward`:: `false`
 %      Reuse the output values from the provided RES structure and compute
-%      only the derivatives (bacward pass).
+%      only the derivatives (backward pass).
 %
 %   ## The result format
 %
@@ -107,6 +114,7 @@ function res = vl_simplenn(net, x, dzdy, res, varargin)
 %     - `layer.weights` is a cell array with filters and biases.
 %     - `layer.stride` is the sampling stride (e.g. 1).
 %     - `layer.pad` is the padding (e.g. 0).
+%     - `layer.dilate` is the dilation factor (e.g. 1).
 %
 %   Convolution transpose layer::
 %     The convolution transpose layer wraps VL_NNCONVT(). It has fields:
@@ -222,10 +230,13 @@ opts.mode = 'normal' ;
 opts.accumulate = false ;
 opts.cudnn = true ;
 opts.backPropDepth = +inf ;
-opts.skipForward = false;
+opts.skipForward = false ;
+opts.parameterServer = [] ;
+opts.holdOn = false ;
 opts = vl_argparse(opts, varargin);
 
 n = numel(net.layers) ;
+assert(opts.backPropDepth > 0, 'Invalid `backPropDepth` value (!>0)');
 backPropLim = max(n - opts.backPropDepth + 1, 1);
 
 if (nargin <= 2) || isempty(dzdy)
@@ -240,8 +251,10 @@ end
 
 if opts.cudnn
   cudnn = {'CuDNN'} ;
+  bnormCudnn = {'NoCuDNN'} ; % ours seems slighty faster
 else
   cudnn = {'NoCuDNN'} ;
+  bnormCudnn = {'NoCuDNN'} ;
 end
 
 switch lower(opts.mode)
@@ -274,7 +287,6 @@ if ~opts.skipForward
   res(1).x = x ;
 end
 
-
 % -------------------------------------------------------------------------
 %                                                              Forward pass
 % -------------------------------------------------------------------------
@@ -288,6 +300,7 @@ for i=1:n
       res(i+1).x = vl_nnconv(res(i).x, l.weights{1}, l.weights{2}, ...
         'pad', l.pad, ...
         'stride', l.stride, ...
+        'dilate', l.dilate, ...
         l.opts{:}, ...
         cudnn{:}) ;
 
@@ -340,16 +353,22 @@ for i=1:n
 
     case 'bnorm'
       if testMode
-        res(i+1).x = vl_nnbnorm(res(i).x, l.weights{1}, l.weights{2}, 'moments', l.weights{3}) ;
+        res(i+1).x = vl_nnbnorm(res(i).x, l.weights{1}, l.weights{2}, ...
+                                'moments', l.weights{3}, ...
+                                'epsilon', l.epsilon, ...
+                                bnormCudnn{:}) ;
       else
-        res(i+1).x = vl_nnbnorm(res(i).x, l.weights{1}, l.weights{2}) ;
+        res(i+1).x = vl_nnbnorm(res(i).x, l.weights{1}, l.weights{2}, ...
+                                'epsilon', l.epsilon, ...
+                                bnormCudnn{:}) ;
       end
 
     case 'pdist'
       res(i+1).x = vl_nnpdist(res(i).x, l.class, l.p, ...
         'noRoot', l.noRoot, ...
         'epsilon', l.epsilon, ...
-        'aggregate', l.aggregate) ;
+        'aggregate', l.aggregate, ...
+        'instanceWeights', l.instanceWeights) ;
 
     case 'custom'
       res(i+1) = l.forward(l, res(i), res(i+1)) ;
@@ -359,13 +378,14 @@ for i=1:n
   end
 
   % optionally forget intermediate results
-  forget = opts.conserveMemory & ~(doder & n >= backPropLim) ;
+  needsBProp = doder && i >= backPropLim;
+  forget = opts.conserveMemory && ~needsBProp ;
   if i > 1
     lp = net.layers{i-1} ;
     % forget RELU input, even for BPROP
-    forget = forget & (~doder | (strcmp(l.type, 'relu') & ~lp.precious)) ;
-    forget = forget & ~(strcmp(lp.type, 'loss') || strcmp(lp.type, 'softmaxloss')) ;
-    forget = forget & ~lp.precious ;
+    forget = forget && (~needsBProp || (strcmp(l.type, 'relu') && ~lp.precious)) ;
+    forget = forget && ~(strcmp(lp.type, 'loss') || strcmp(lp.type, 'softmaxloss')) ;
+    forget = forget && ~lp.precious ;
   end
   if forget
     res(i).x = [] ;
@@ -383,7 +403,7 @@ end
 
 if doder
   res(n+1).dzdx = dzdy ;
-  for i=n:-1:max(1, n-opts.backPropDepth+1)
+  for i=n:-1:backPropLim
     l = net.layers{i} ;
     res(i).backwardTime = tic ;
     switch l.type
@@ -393,6 +413,7 @@ if doder
           vl_nnconv(res(i).x, l.weights{1}, l.weights{2}, res(i+1).dzdx, ...
           'pad', l.pad, ...
           'stride', l.stride, ...
+          'dilate', l.dilate, ...
           l.opts{:}, ...
           cudnn{:}) ;
 
@@ -453,7 +474,9 @@ if doder
 
       case 'bnorm'
         [res(i).dzdx, dzdw{1}, dzdw{2}, dzdw{3}] = ...
-          vl_nnbnorm(res(i).x, l.weights{1}, l.weights{2}, res(i+1).dzdx) ;
+          vl_nnbnorm(res(i).x, l.weights{1}, l.weights{2}, res(i+1).dzdx, ...
+                     'epsilon', l.epsilon, ...
+                     bnormCudnn{:}) ;
         % multiply the moments update by the number of images in the batch
         % this is required to make the update additive for subbatches
         % and will eventually be normalized away
@@ -464,7 +487,8 @@ if doder
           l.p, res(i+1).dzdx, ...
           'noRoot', l.noRoot, ...
           'epsilon', l.epsilon, ...
-          'aggregate', l.aggregate) ;
+          'aggregate', l.aggregate, ...
+          'instanceWeights', l.instanceWeights) ;
 
       case 'custom'
         res(i) = l.backward(l, res(i), res(i+1)) ;
@@ -481,6 +505,12 @@ if doder
           end
         end
         dzdw = [] ;
+        if ~isempty(opts.parameterServer) && ~opts.holdOn
+          for j = 1:numel(res(i).dzdw)
+            opts.parameterServer.push(sprintf('l%d_%d',i,j),res(i).dzdw{j}) ;
+            res(i).dzdw{j} = [] ;
+          end
+        end
     end
     if opts.conserveMemory && ~net.layers{i}.precious && i ~= n
       res(i+1).dzdx = [] ;
@@ -490,5 +520,9 @@ if doder
       wait(gpuDevice) ;
     end
     res(i).backwardTime = toc(res(i).backwardTime) ;
+  end
+  if i > 1 && i == backPropLim && opts.conserveMemory && ~net.layers{i}.precious
+    res(i).dzdx = [] ;
+    res(i).x = [] ;
   end
 end

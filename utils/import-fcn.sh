@@ -28,10 +28,17 @@ pushd `dirname $0` > /dev/null
 SCRIPTPATH=`pwd`
 popd > /dev/null
 
+# Use the python implementation of protocol buffers to load gigantic caffe models.
+# The CPP implementation may not load these files on all systems out-of-the-box.
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 converter="python $SCRIPTPATH/import-caffe.py"
-data="$SCRIPTPATH/../data"
+data="$SCRIPTPATH/../data/models-import"
 
 mkdir -p "$data/tmp/fcn"
+
+if [ ! -d "$data/models/" ]; then
+    mkdir "$data/models"
+fi
 
 function get()
 {
@@ -56,7 +63,7 @@ then
 
     for ((i=0;i<${#ins[@]};++i)); do
         in="$data/tmp/fcn/${ins[i]}"
-        out="$data/models/${outs[i]}.mat"
+        out="$data/${outs[i]}.mat"
         if test -f "$out" -a -z "$overwrite"
         then
             echo "$out exists; skipping."
