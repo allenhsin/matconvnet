@@ -16,10 +16,12 @@ switch device
   case 'gpu'
     for i=1:numel(obj.params)
       obj.params(i).value = gpuArray(obj.params(i).value) ;
+      obj.params(i).fi_value = gpuArray(obj.params(i).fi_value) ;
     end
   case 'cpu'
     for i=1:numel(obj.params)
       obj.params(i).value = gather(obj.params(i).value) ;
+      obj.params(i).fi_value = gather(obj.params(i).fi_value) ;
     end
   otherwise
     error('DEVICE must be either ''cpu'' or ''gpu''.') ;
