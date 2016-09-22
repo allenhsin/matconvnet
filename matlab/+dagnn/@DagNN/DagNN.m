@@ -118,7 +118,8 @@ classdef DagNN < matlab.mixin.Copyable
         'paramIndexes', {}, ...
         'forwardTime', {[]}, ...
         'backwardTime', {[]}, ...
-        'block', {}) ;
+        'block', {}, ...
+        'fi_format', {}) ;
     end
 
     function set.mode(obj, mode)
@@ -136,7 +137,7 @@ classdef DagNN < matlab.mixin.Copyable
     s = saveobj(obj)
 
     % Manipualte the DagNN
-    addLayer(obj, name, block, inputs, outputs, params, varargin)
+    addLayer(obj, name, block, inputs, outputs, params, fi_format, varargin)
     removeLayer(obj, name)
     setLayerInputs(obj, leyer, inputs)
     setLayerOutput(obj, layer, outputs)
