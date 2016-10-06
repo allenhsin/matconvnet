@@ -1321,7 +1321,6 @@ void mexFunction(int nout, mxArray *out[],
           vlmxError(VLMXE_IllegalArgument, "INTERPOLATION is not a supported method.") ;
         }
         break;
-        break ;
       }
     }
   }

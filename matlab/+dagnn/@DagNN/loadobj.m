@@ -22,6 +22,9 @@ if isstruct(s)
   end
   obj = dagnn.DagNN() ;
   try
+    if isfield(s, 'device')
+        obj.device = s.device;
+    end
     for l = 1:numel(s.layers)
       constr = str2func(s.layers(l).type) ;
       block = constr() ;
@@ -32,7 +35,7 @@ if isstruct(s)
         s.layers(l).inputs, ...
         s.layers(l).outputs, ...
         s.layers(l).params,...
-        s.layers(l).fi_format,...
+        [],... %s.layers(l).fi_format,...
         'skipRebuild', true) ;
     end
   catch e % Make sure the DagNN object is in valid state
