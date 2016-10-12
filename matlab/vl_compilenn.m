@@ -164,6 +164,7 @@ opts.defCudaArch      = [...
   '-gencode=arch=compute_20,code=\"sm_20,compute_20\" '...
   '-gencode=arch=compute_30,code=\"sm_30,compute_30\"'];
 opts.cudnnRoot        = 'local/cudnn' ;
+opts.mexDirName       = 'mex';
 opts = vl_argparse(opts, varargin);
 
 % --------------------------------------------------------------------
@@ -306,7 +307,7 @@ end
 % --------------------------------------------------------------------
 
 % Build directories
-mex_dir = fullfile(root, 'matlab', 'mex') ;
+mex_dir = fullfile(root, 'matlab', opts.mexDirName) ;
 bld_dir = fullfile(mex_dir, '.build');
 if ~exist(fullfile(bld_dir,'bits','impl'), 'dir')
   mkdir(fullfile(bld_dir,'bits','impl')) ;
@@ -494,7 +495,7 @@ for i = 1:numel(mex_src)
 end
 
 % Reset path adding the mex subdirectory just created
-vl_setupnn() ;
+vl_setupnn(opts) ;
 
 % --------------------------------------------------------------------
 %                                                    Utility functions
