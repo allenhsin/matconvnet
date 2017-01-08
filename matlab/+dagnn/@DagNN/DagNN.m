@@ -134,7 +134,7 @@ classdef DagNN < matlab.mixin.Copyable
     % Manage the DagNN
     reset(obj)
     move(obj, direction)
-    s = saveobj(obj)
+    s = saveobj(obj, save_vars)
 
     % Manipualte the DagNN
     addLayer(obj, name, block, inputs, outputs, params, fi_format, varargin)
