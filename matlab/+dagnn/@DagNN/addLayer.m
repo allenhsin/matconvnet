@@ -1,4 +1,4 @@
-function addLayer(obj, name, block, inputs, outputs, params, fi_format, varargin)
+function addLayer(obj, name, block, inputs, outputs, params, quantization, varargin)
 %ADDLAYER  Adds a layer to a DagNN
 %   ADDLAYER(NAME, LAYER, INPUTS, OUTPUTS, PARAMS) adds the
 %   specified layer to the network. NAME is a string with the layer
@@ -11,7 +11,7 @@ function addLayer(obj, name, block, inputs, outputs, params, fi_format, varargin
 opts.skipRebuild = false;
 opts = vl_argparse(opts, varargin);
 
-index = find(strcmp(name, {obj.layers.name})) ;
+index = find(strcmp(name, {obj.layers.name})) ; %#ok<EFIND>
 if ~isempty(index), error('There is already a layer with name ''%s''.', name), end
 index = numel(obj.layers) + 1 ;
 
@@ -31,7 +31,7 @@ obj.layers(index) = struct(...
   'forwardTime', {[]}, ...
   'backwardTime', {[]}, ...
   'block', {block}, ...
-  'fi_format', {fi_format} ...
+  'quantization', {quantization} ...
 ) ;
 obj.layers(index).block.attach(obj, index) ;
 if ~opts.skipRebuild, obj.rebuild() ; end ;
